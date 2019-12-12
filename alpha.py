@@ -3,9 +3,6 @@ import os
 import sys
 from random import Random, choices
 
-# direction is top-right because of starting point is necessary
-# * [ ] 
-# * [ ] 
 
 # Mario Sprite Enums
 class MarioSprite(enum.Enum):
@@ -42,18 +39,7 @@ class MarioSprite(enum.Enum):
     GREEN_KOOPA_WINGED = 'K'
     SPIKY = 'y'
     SPIKY_WINGED = 'Y'
-
-
-# 
-# ALL_TILES = [EMPTY, GROUND, PYRAMID_BLOCK, NORMAL_BRICK, COIN_BRICK, LIFE_BRICK, SPECIAL_BRICK, SPECIAL_QUESTION_BLOCK, COIN_QUESTION_BLOCK, COIN_HIDDEN_BLOCK, LIFE_HIDDEN_BLOCK, USED_BLOCK, COIN, PIPE, PIPE_FLOWER, BULLET_BILL, PLATFORM_BACKGROUND, PLATFORM, GOOMBA, GOOMBA_WINGED, RED_KOOPA, RED_KOOPA_WINGED, GREEN_KOOPA, GREEN_KOOPA_WINGED, SPIKY, SPIKY_WINGED] 
-START_EXIT = [MarioSprite.MARIO_START, MarioSprite.MARIO_EXIT]
-
-ALL_ENEMY = [MarioSprite.GOOMBA, MarioSprite.GOOMBA_WINGED, MarioSprite.RED_KOOPA, MarioSprite.RED_KOOPA_WINGED, MarioSprite.GREEN_KOOPA, MarioSprite.GREEN_KOOPA_WINGED, MarioSprite.SPIKY, MarioSprite.SPIKY_WINGED]
-
-
-
-# 
-
+#ALL_TILES = [EMPTY, GROUND, PYRAMID_BLOCK, NORMAL_BRICK, COIN_BRICK, LIFE_BRICK, SPECIAL_BRICK, SPECIAL_QUESTION_BLOCK, COIN_QUESTION_BLOCK, COIN_HIDDEN_BLOCK, LIFE_HIDDEN_BLOCK, USED_BLOCK, COIN, PIPE, PIPE_FLOWER, BULLET_BILL, PLATFORM_BACKGROUND, PLATFORM, GOOMBA, GOOMBA_WINGED, RED_KOOPA, RED_KOOPA_WINGED, GREEN_KOOPA, GREEN_KOOPA_WINGED, SPIKY, SPIKY_WINGED] 
 
 DEST_PATH = "/home/geminik23/workspace/__java__/ecs7002p-marioai/levels/groupq"
 #DEST_PATH = "./"
@@ -76,7 +62,9 @@ def load_levels(path):
     lines = []
     for line in f.readlines():
         lines.append(line.strip())
+
     
+    print(lines)
     length = len(lines[0])
     for i in range(4): # divide 4 section in row
         a = {}
@@ -172,3 +160,6 @@ if __name__ == '__main__':
 
     # generate
     generate()
+    
+    
+
