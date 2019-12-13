@@ -1,4 +1,5 @@
 # GroupQ Level Generator
+developed with Python 3.7
 
 ## Configuration
 ``` ini

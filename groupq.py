@@ -1,99 +1,10 @@
-import enum
 import os
 import sys
 from random import Random, choices
 import numpy as np
 import configparser
-from datetime import datetime
-from rtinspector import RealtimeInspector
-
-
-DEFAULT_BLOCK_UNIT = 2
-DEFAULT_NUM_OF_LEVELS = 1
-DEFAULT_STATE = 0
-
-CONFIG_INPUTPATH = "InputPath"
-CONFIG_OUTPUTPATH = "OutputPath"
-CONFIG_PARAMS = "Params"
-DEST_WIDTH= 150
-DEST_HEIGHT = 16
-DEST_SIZE = (DEST_HEIGHT, DEST_WIDTH)
-
-
-# for time estimation
-class TimeEstimate:
-    """
-    Estimate the time
-    """
-    def __init__(self):
-        self._t = 0
-
-    def start(self):
-        self._t = datetime.now().timestamp()
-        return self
-
-    def stop(self):
-        now = datetime.now().timestamp()
-        p = now - self._t
-        self._t = now
-        return p
-
-# Mario Sprite Enums
-class MarioSprite(enum.Enum):
-    # start and end of the level
-    MARIO_START = ord('M')
-    MARIO_EXIT = ord('F')
-    EMPTY =ord('-')
-
-    # game tiles symbols
-    GROUND =ord('X')
-    PYRAMID_BLOCK =ord('#')
-    NORMAL_BRICK =ord('S')
-    COIN_BRICK =ord('C')
-    LIFE_BRICK =ord('L')
-    SPECIAL_BRICK =ord('U')
-    SPECIAL_QUESTION_BLOCK =ord('@')
-    COIN_QUESTION_BLOCK =ord('!')
-    COIN_HIDDEN_BLOCK =ord('2')
-    LIFE_HIDDEN_BLOCK =ord('1')
-    USED_BLOCK =ord('D')
-    COIN =ord('o')
-    PIPE =ord('t')
-    PIPE_FLOWER =ord('T')
-    BULLET_BILL =ord('*')
-    PLATFORM_BACKGROUND =ord('|')
-    PLATFORM =ord('%')
-
-    # enemies that can be in the level
-    GOOMBA =ord('g')
-    GOOMBA_WINGED =ord('G')
-    RED_KOOPA =ord('r')
-    RED_KOOPA_WINGED =ord('R')
-    GREEN_KOOPA =ord('k')
-    GREEN_KOOPA_WINGED =ord('K')
-    SPIKY =ord('y')
-    SPIKY_WINGED =ord('Y')
-
-    # only in ORIGINAL
-    #CACTUS =ord('|')
-
-
-# 
-# ALL_TILES = [EMPTY, GROUND, PYRAMID_BLOCK, NORMAL_BRICK, COIN_BRICK, LIFE_BRICK, SPECIAL_BRICK, SPECIAL_QUESTION_BLOCK, COIN_QUESTION_BLOCK, COIN_HIDDEN_BLOCK, LIFE_HIDDEN_BLOCK, USED_BLOCK, COIN, PIPE, PIPE_FLOWER, BULLET_BILL, PLATFORM_BACKGROUND, PLATFORM, GOOMBA, GOOMBA_WINGED, RED_KOOPA, RED_KOOPA_WINGED, GREEN_KOOPA, GREEN_KOOPA_WINGED, SPIKY, SPIKY_WINGED] 
-
-ALL_ENEMY = [MarioSprite.GOOMBA.value, 
-        MarioSprite.GOOMBA_WINGED.value, 
-        MarioSprite.RED_KOOPA.value,
-        MarioSprite.RED_KOOPA_WINGED.value,
-        MarioSprite.GREEN_KOOPA.value,
-        MarioSprite.GREEN_KOOPA_WINGED.value,
-        MarioSprite.SPIKY.value,
-        MarioSprite.SPIKY_WINGED.value]
-
-ALL_SPRITES_TO_BE_REMOVED = [MarioSprite.MARIO_START.value,
-        MarioSprite.MARIO_EXIT.value,
-        MarioSprite.COIN.value,
-        MarioSprite.PLATFORM_BACKGROUND.value ] + ALL_ENEMY
+from rtinspector import RealtimeInspector, RTResult
+from mario_constant import *
 
 
 ############################################################################
@@ -238,9 +149,8 @@ class MarioCoreMC:
     """
     Mario Core Markov Chain object
     """
-    def __init__(self, unitsize, rt_inspector):
+    def __init__(self, unitsize):
         self._unit = BLOCK_UNIT if not unitsize else unitsize
-        self._rt_inspector = rt_inspector
         
         # dependency tables
         self._dt_wall = DependencyTable()
@@ -287,9 +197,10 @@ class MarioCoreMC:
         pass
 
 
-    def generate(self, output):
+    def generate(self, output, rti):
         (h, w) = output.shape
-        rti = self._rt_inspector
+
+        rti.reset(output, self._unit)
 
         ######
         # 1. generate the left wall
@@ -306,41 +217,44 @@ class MarioCoreMC:
             # FIXME check if generated? Realtime 
             cur = DMatConverter.Decode(generated, (self._unit, self._unit))
             output[h-self._unit:h, xoff:xoff+self._unit] = cur[:,:]
-
-        # TODO tracking the bottom situation
+            
 
         #####
         # 3. generate whole tiles
-        placed_start = False
         for xoff in range(self._unit, w, self._unit):
             for yoff in range(h - 2*self._unit, -1, -self._unit):
-                cur = output[yoff:yoff+self._unit*2, xoff-self._unit:xoff+self._unit]
-                # 1st priority
-                # dt_1111
-                generated = self._dt_1111.generate_state(DMat_1111.PrevState(cur, self._unit))
-                if generated:
-                    output[yoff:yoff+self._unit, xoff:xoff+self._unit] = DMatConverter.Decode(generated, (self._unit, self._unit))[:,:]
-                    continue
+                # check current position
+                res = rti.inspect((xoff, yoff))
+                generated = None
 
-                # dt_1101
-                generated = self._dt_1101.generate_state(DMat_1101.PrevState(cur, self._unit))
-                if generated:
-                    output[yoff:yoff+self._unit, xoff:xoff+self._unit] = DMatConverter.Decode(generated, (self._unit, self._unit))[:,:]
-                    continue
+                # dependency matrix methods
+                while res is not RTResult.TRUE:
+                    #
+                    if res is RTResult.DMAT_1111:
+                        cur = output[yoff:yoff+self._unit*2, xoff-self._unit:xoff+self._unit]
+                        generated = self._dt_1111.generate_state(DMat_1111.PrevState(cur, self._unit))
+                    #
+                    elif res is RTResult.DMAT_1101:
+                        cur = output[yoff:yoff+self._unit*2, xoff-self._unit:xoff+self._unit]
+                        generated = self._dt_1101.generate_state(DMat_1101.PrevState(cur, self._unit))
 
-                # dt_11
-                cur = output[yoff:yoff+self._unit, xoff-self._unit:xoff+self._unit]
-                generated = self._dt_11.generate_state(DMat_11.PrevState(cur, self._unit))
-                if generated:
-                    output[yoff:yoff+self._unit, xoff:xoff+self._unit] = DMatConverter.Decode(generated, (self._unit, self._unit))[:,:]
-                    continue
+                    #
+                    elif res is RTResult.DMAT_11:
+                        cur = output[yoff:yoff+self._unit, xoff-self._unit:xoff+self._unit]
+                        generated = self._dt_11.generate_state(DMat_11.PrevState(cur, self._unit))
+
+
+                    res = rti.check_block(generated)
+                    if res is RTResult.TRUE:
+                        output[yoff:yoff+self._unit, xoff:xoff+self._unit] = DMatConverter.Decode(generated, (self._unit, self._unit))[:,:]
+
+                    pass # while
 
         # TODO self._rt_inspector.place enemy / coin / items
-        # TODO
 
-                pass
-            pass
-        pass
+                pass #for
+            pass #for
+        pass #generate()
 
         
 
@@ -366,7 +280,7 @@ class GroupQLevelGenerator:
         else: self._unitsize = int(self._unitsize)
 
         self._rt_inspector = RealtimeInspector(self._config)
-        self._markovchain = MarioCoreMC(self._unitsize, self._rt_inspector)
+        self._markovchain = MarioCoreMC(self._unitsize)
         # generating output
         self._output = np.zeros(DEST_SIZE, dtype=int)
 
@@ -402,7 +316,7 @@ class GroupQLevelGenerator:
 
         # reset output and call genrate method of markov chain object
         self._output.fill(MarioSprite.EMPTY.value)
-        self._markovchain.generate(self._output)
+        self._markovchain.generate(self._output, self._rt_inspector)
 
         return te.stop()
 
