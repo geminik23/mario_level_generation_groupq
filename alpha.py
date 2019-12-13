@@ -138,7 +138,6 @@ def generate():
         f.write('\n')
     f.close()
 
-
     
     pass
 

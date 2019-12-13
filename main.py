@@ -7,13 +7,18 @@ import configparser
 from datetime import datetime
 
 
+## CONSTANTS
+BLOCK_UNIT = 2
+CONFIG_INPUTPATH = "InputPath"
+CONFIG_OUTPUTPATH = "OutputPath"
+DEST_HEIGHT = 16
+DEST_WIDTH = 150
+DEST_SIZE = (DEST_HEIGHT, DEST_WIDTH)
 
-# direction is top-right because of starting point is necessary
-# * [ ] 
-# * [ ] 
 
-# LEFT BOTTOM middle of blocks
 
+
+# for time estimation
 class TimeEstimate:
     def __init__(self):
         self._t = 0
@@ -158,38 +163,73 @@ class DependencyTable:
 
     def generate_state(self, state):
         # generate
-        pass
+        data = None
+        table = self._table.get(state)
+        if not table: return data
+        data = choices([k for k in table.keys()], [v for v in table.values()])
+        if type(data) == list: data = data[0]
+        return data
 
 
 
-class DMatrixConverter():
+
+class DMatConverter():
     """
     numpy array to string converter for key storing in hashtable
     """
-    def Decode(sequence):
-        # TODO
-        pass
+    def Decode(sequence, bsize):
+        res = np.array([ord(c) for c in sequence], dtype=int)
+        return res.reshape((bsize, bsize))
 
     def Encode(mat):
-        return ''.join([chr(ele) for ele in mat.flatten().tolist()])
+        res = ''.join([chr(ele) for ele in mat.flatten().tolist()])
+        return res
 
-    def DM_11(matrix, unit):
-        return (DMatrixConverter.Encode(matrix[0:unit,0:unit]), DMatrixConverter.Encode(matrix[0:unit:unit*2]))
 
-    def DM_1101(matrix, unit):
-        pass
+class DMat_11:
+    def PrevState(matrix, unit):
+        return DMatConverter.Encode(matrix[0:unit,0:unit])
 
+    def NextState(matrix, unit):
+        return DMatConverter.Encode(matrix[0:unit,unit:unit*2])
+
+    @classmethod
+    def Parse(cls, matrix, unit):
+        return (cls.PrevState(matrix, unit), cls.NextState(matrix, unit))
+
+
+class DMat_1101:
+    def PrevState(matrix, unit):
+        return DMatConverter.Encode( np.concatenate((matrix[0:unit, 0:unit], matrix[unit:unit*2, unit:unit*2]),axis=1) )
+
+    def NextState(matrix, unit):
+        return DMatConverter.Encode(matrix[0:unit,unit:unit*2])
+
+    @classmethod
+    def Parse(cls, matrix, unit):
+        return (cls.PrevState(matrix, unit), cls.NextState(matrix, unit))
+
+
+class DMat_1111:
+    def PrevState(matrix, unit):
+        return DMatConverter.Encode( np.concatenate((matrix[0:unit, 0:unit], matrix[unit:unit*2, 0:unit], matrix[unit:unit*2, unit:unit*2]),axis=1))
+
+    def NextState(matrix, unit):
+        return DMatConverter.Encode(matrix[0:unit,unit:unit*2])
+    @classmethod
+    def Parse(cls, matrix, unit):
+        return (cls.PrevState(matrix, unit), cls.NextState(matrix, unit))
 
 
 
 class MDMarkovChain:
     """
     """
-    UNIT = 2
     def __init__(self):
         ## key : {value: frequency}
         # bottom
-        self._start_block = np.zeros((UNIT, UNIT), dtype=int)
+        self._unit = BLOCK_UNIT
+        self._start_block = np.zeros((self._unit, self._unit), dtype=int)
         self._start_block.fill(MarioSprite.GROUND.value)
         self._dt_bottom = DependencyTable()
 
@@ -197,33 +237,38 @@ class MDMarkovChain:
 
     def train(self, level):
         ldata = level.get_data()
-        nrows = ldata.shape[0]/UNIT
+        nrows = ldata.shape[0]/self._unit
 
         # ready for training the bottom lines
-        n = int((nrows-1)*UNIT)
-        bottoms = ldata[n:n+UNIT, :]
+        n = int((nrows-1)*self._unit)
+        bottoms = ldata[n:n+self._unit, :]
 
 
         length = bottoms.shape[1]
-        if length & UNIT is not 0: length -= (length & UNIT)
+        if length & self._unit is not 0: length -= (length & self._unit)
 
-        for y in range(UNIT,length,UNIT):
-            nstate = bottoms[:,y:y+UNIT]
-            mat = bottoms[:,y-UNIT:y+UNIT]
-            self._dt_bottom.train(DMatrixConverter.DM_11(mat, UNIT))
+        for xoff in range(self._unit,length,self._unit):
+            nstate = bottoms[:,xoff:xoff+self._unit]
+            mat = bottoms[:,xoff-self._unit:xoff+self._unit]
+            self._dt_bottom.train(DMat_11.Parse(mat, self._unit))
         pass
 
-    def generate(self, param):
-        # TODO
+    def generate(self, output):
+        # * decode, encode
         # generate the bottom first
+        (h, w) = output.shape
+        output[h-self._unit:h, 0:self._unit] = self._start_block[:,:]
+        
+        cur = output[h-self._unit:h, 0:self._unit]
+        for xoff in range(self._unit, w, self._unit):
+            generated = self._dt_bottom.generate_state(DMatConverter.Encode(cur))
+            # FIXME check if generated?
+            cur = DMatConverter.Decode(generated, self._unit)
+            output[h-self._unit:h, xoff:xoff+self._unit] = cur[:,:]
+
+        # TODO
         
         pass
-
-
-CONFIG_INPUTPATH = "InputPath"
-CONFIG_OUTPUTPATH = "OutputPath"
-
-DEST_SIZE = (16,150)
 
 
 class GroupQLevelGenerator:
@@ -269,6 +314,7 @@ class GroupQLevelGenerator:
         # initialize the output
         te = TimeEstimate().start()
         self._output.fill(MarioSprite.EMPTY.value)
+        self._markovchain.generate(self._output)
         # TODO
 
         return te.stop()
