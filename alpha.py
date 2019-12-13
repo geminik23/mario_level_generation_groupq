@@ -64,7 +64,7 @@ def load_levels(path):
         lines.append(line.strip())
 
     
-    print(lines)
+    print(lins)
     length = len(lines[0])
     for i in range(4): # divide 4 section in row
         a = {}
@@ -123,8 +123,7 @@ def generate():
         for l in range(UNIT, 150, UNIT):
             table = MAPLINE[i].get(prev)
             data = choices([k for k in table.keys()], [v for v in table.values()])
-            if type(data) == list:
-                data = data[0]
+            if type(data) == list: data = data[0]
             
             add_sprite(dest, data, i*4, UNIT)
             prev = data

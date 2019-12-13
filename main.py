@@ -2,173 +2,293 @@ import enum
 import os
 import sys
 from random import Random, choices
+import numpy as np
+import configparser
+from datetime import datetime
+
+
 
 # direction is top-right because of starting point is necessary
 # * [ ] 
 # * [ ] 
 
+# LEFT BOTTOM middle of blocks
+
+class TimeEstimate:
+    def __init__(self):
+        self._t = 0
+
+    def start(self):
+        self._t = datetime.now().timestamp()
+        return self
+
+    def stop(self):
+        now = datetime.now().timestamp()
+        p = now - self._t
+        self._t = now
+        return p
+
+
 # Mario Sprite Enums
 class MarioSprite(enum.Enum):
     # start and end of the level
-    MARIO_START = 'M'
-    MARIO_EXIT = 'F'
-    EMPTY = '-'
+    MARIO_START = ord('M')
+    MARIO_EXIT = ord('F')
+    EMPTY =ord('-')
 
     # game tiles symbols
-    GROUND = 'X'
-    PYRAMID_BLOCK = '#'
-    NORMAL_BRICK = 'S'
-    COIN_BRICK = 'C'
-    LIFE_BRICK = 'L'
-    SPECIAL_BRICK = 'U'
-    SPECIAL_QUESTION_BLOCK = '@'
-    COIN_QUESTION_BLOCK = '!'
-    COIN_HIDDEN_BLOCK = '2'
-    LIFE_HIDDEN_BLOCK = '1'
-    USED_BLOCK = 'D'
-    COIN = 'o'
-    PIPE = 't'
-    PIPE_FLOWER = 'T'
-    BULLET_BILL = '*'
-    PLATFORM_BACKGROUND = '|'
-    PLATFORM = '%'
+    GROUND =ord('X')
+    PYRAMID_BLOCK =ord('#')
+    NORMAL_BRICK =ord('S')
+    COIN_BRICK =ord('C')
+    LIFE_BRICK =ord('L')
+    SPECIAL_BRICK =ord('U')
+    SPECIAL_QUESTION_BLOCK =ord('@')
+    COIN_QUESTION_BLOCK =ord('!')
+    COIN_HIDDEN_BLOCK =ord('2')
+    LIFE_HIDDEN_BLOCK =ord('1')
+    USED_BLOCK =ord('D')
+    COIN =ord('o')
+    PIPE =ord('t')
+    PIPE_FLOWER =ord('T')
+    BULLET_BILL =ord('*')
+    PLATFORM_BACKGROUND =ord('|')
+    PLATFORM =ord('%')
 
     # enemies that can be in the level
-    GOOMBA = 'g'
-    GOOMBA_WINGED = 'G'
-    RED_KOOPA = 'r'
-    RED_KOOPA_WINGED = 'R'
-    GREEN_KOOPA = 'k'
-    GREEN_KOOPA_WINGED = 'K'
-    SPIKY = 'y'
-    SPIKY_WINGED = 'Y'
+    GOOMBA =ord('g')
+    GOOMBA_WINGED =ord('G')
+    RED_KOOPA =ord('r')
+    RED_KOOPA_WINGED =ord('R')
+    GREEN_KOOPA =ord('k')
+    GREEN_KOOPA_WINGED =ord('K')
+    SPIKY =ord('y')
+    SPIKY_WINGED =ord('Y')
+
+    # only in ORIGINAL
+    #CACTUS =ord('|')
 
 
 # 
 # ALL_TILES = [EMPTY, GROUND, PYRAMID_BLOCK, NORMAL_BRICK, COIN_BRICK, LIFE_BRICK, SPECIAL_BRICK, SPECIAL_QUESTION_BLOCK, COIN_QUESTION_BLOCK, COIN_HIDDEN_BLOCK, LIFE_HIDDEN_BLOCK, USED_BLOCK, COIN, PIPE, PIPE_FLOWER, BULLET_BILL, PLATFORM_BACKGROUND, PLATFORM, GOOMBA, GOOMBA_WINGED, RED_KOOPA, RED_KOOPA_WINGED, GREEN_KOOPA, GREEN_KOOPA_WINGED, SPIKY, SPIKY_WINGED] 
-START_EXIT = [MarioSprite.MARIO_START, MarioSprite.MARIO_EXIT]
 
-ALL_ENEMY = [MarioSprite.GOOMBA, MarioSprite.GOOMBA_WINGED, MarioSprite.RED_KOOPA, MarioSprite.RED_KOOPA_WINGED, MarioSprite.GREEN_KOOPA, MarioSprite.GREEN_KOOPA_WINGED, MarioSprite.SPIKY, MarioSprite.SPIKY_WINGED]
-
-
-
-# 
-
-
-DEST_PATH = "/home/geminik23/workspace/__java__/ecs7002p-marioai/levels/groupq"
-#DEST_PATH = "./"
-
-
-# probablity
-# how to ?
-
-rand = Random()
+ALL_ENEMY = [MarioSprite.GOOMBA.value, 
+        MarioSprite.GOOMBA_WINGED.value, 
+        MarioSprite.RED_KOOPA.value,
+        MarioSprite.RED_KOOPA_WINGED.value,
+        MarioSprite.GREEN_KOOPA.value,
+        MarioSprite.GREEN_KOOPA_WINGED.value,
+        MarioSprite.SPIKY.value,
+        MarioSprite.SPIKY_WINGED]
+ALL_SPRITES_TO_BE_REMOVED = [MarioSprite.MARIO_START.value,
+        MarioSprite.MARIO_EXIT.value,
+        MarioSprite.COIN.value,
+        MarioSprite.PLATFORM_BACKGROUND.value ] + ALL_ENEMY
 
 
-ORDER = 1
-UNIT = 3
-START = [[],[],[],[]]
-MAPLINE = [{},{},{},{}]
 
 
-def load_levels(path):
-    f = open(path, 'r')
-    lines = []
-    for line in f.readlines():
-        lines.append(line.strip())
-    
-    length = len(lines[0])
-    for i in range(4): # divide 4 section in row
-        a = {}
-        # parsing 4 lines
-        # 1. save to maps 
-        maps = [lines[i*4],lines[i*4+1],lines[i*4+2],lines[i*4+3]]
-        
-        if length % UNIT != 0:
-            length -= length % UNIT
-        length -=1
-
-        prev = None
-        for l in range(0, length, UNIT):
-            data = ''
-            for insidel in range(4):
-                for u in range(UNIT):
-                    data += maps[insidel][l+u]
-                    # data = maps[0][l] + maps[0][l+1]
-                    # data += maps[1][l] + maps[1][l+1]
-                    # data += maps[2][l] + maps[2][l+1]
-                    # data += maps[3][l] + maps[3][l+1]
-
-
-            if prev == None:
-                START[i].append(data)
-            else:
-                if not MAPLINE[i].get(prev):
-                    MAPLINE[i][prev] = {}
-                count = MAPLINE[i][prev].get(data)
-                if count == None: MAPLINE[i][prev][data] = 0
-                MAPLINE[i][prev][data] += 1
-            prev = data
+class MarioLevel:
+    """
+    load level file and convert into numpy array.
+    """
+    def __init__(self, path):
+        self.data = None
+        self.load_level(path)
         pass
-    f.close()
 
-
-def add_sprite(dst, chunk, start, unit):
-    for i in range(4):
-        l = ''
-        for j in range(unit):
-            l += chunk[i*unit+j]
-        dst[i+start].append(l)
-    pass
-    
-    
-
-def generate():
-    # randomly select first part from START
-    dest = []
-    for i in range(16): dest.append([])
-
-    for i in range(4):
-        sel = int(rand.random()* len(START[i]))
-        prev = START[i][sel]
-        add_sprite(dest, prev, i*4, UNIT)
-        for l in range(UNIT, 150, UNIT):
-            table = MAPLINE[i].get(prev)
-            data = choices([k for k in table.keys()], [v for v in table.values()])
-            if type(data) == list:
-                data = data[0]
-            
-            add_sprite(dest, data, i*4, UNIT)
-            prev = data
-            
-            #add_sprite(dest, sel, range(i, i+4), UNIT)
-            pass
+    def load_level(self, path):
+        f = open(path, 'r')
+        # load the each lines of level
+        lines = []
+        for line in f.readlines():
+            lines.append(line.strip())
         
-    f = open('{}/test.txt'.format(DEST_PATH), 'w')
-    for line in dest:
-        l = ''.join(line)
-        f.write(l)
-        f.write('\n')
-    f.close()
+        h = len(lines)
+        w = len(lines[0])
+        self.data = np.zeros((h, w), dtype=int)
+        self.data.fill(MarioSprite.EMPTY.value)
+
+        i = 0
+        for line in lines:
+            # convert into np.array and remove the unnecessary sprites
+            self.data[i,:] = np.array([MarioSprite.EMPTY.value if ord(c) in ALL_SPRITES_TO_BE_REMOVED else ord(c) for c in line.strip()][0:w])
+            i += 1
+
+        # remove the sprite unnecessary
+        f.close()
+
+    def get_data(self):
+        return self.data
+
+    def EncodeLevel(data):
+        lines = data.tolist()
+        out = []
+        for line in lines:
+            out.append(''.join([chr(c) for c in line]))
+        return '\n'.join(out)
 
 
+
+# 1. 2x2 ground
+#
+
+# 1. left boundary, right boundary bottom.... -> it needs?
+# 2. left to right 1
+# 3. top right 2
+# 4. top right diagonal 3
+
+
+class DependencyTable:
     
-    pass
+    def __init__(self):
+        self._table= {}
+        pass
+
+    def train(self, states):
+        # train
+        prev_state = states[0]
+        next_state = states[1]
+        if not self._table.get(prev_state):
+            self._table[prev_state] = {}
+        count = self._table[prev_state].get(next_state)
+        if count == None: self._table[prev_state][next_state] = 0
+        self._table[prev_state][next_state] +=1
+        pass
+
+    def generate_state(self, state):
+        # generate
+        pass
+
+
+
+class DMatrixConverter():
+    """
+    numpy array to string converter for key storing in hashtable
+    """
+    def Decode(sequence):
+        # TODO
+        pass
+
+    def Encode(mat):
+        return ''.join([chr(ele) for ele in mat.flatten().tolist()])
+
+    def DM_11(matrix, unit):
+        return (DMatrixConverter.Encode(matrix[0:unit,0:unit]), DMatrixConverter.Encode(matrix[0:unit:unit*2]))
+
+    def DM_1101(matrix, unit):
+        pass
+
+
+
+
+class MDMarkovChain:
+    """
+    """
+    UNIT = 2
+    def __init__(self):
+        ## key : {value: frequency}
+        # bottom
+        self._start_block = np.zeros((UNIT, UNIT), dtype=int)
+        self._start_block.fill(MarioSprite.GROUND.value)
+        self._dt_bottom = DependencyTable()
+
+        pass
+
+    def train(self, level):
+        ldata = level.get_data()
+        nrows = ldata.shape[0]/UNIT
+
+        # ready for training the bottom lines
+        n = int((nrows-1)*UNIT)
+        bottoms = ldata[n:n+UNIT, :]
+
+
+        length = bottoms.shape[1]
+        if length & UNIT is not 0: length -= (length & UNIT)
+
+        for y in range(UNIT,length,UNIT):
+            nstate = bottoms[:,y:y+UNIT]
+            mat = bottoms[:,y-UNIT:y+UNIT]
+            self._dt_bottom.train(DMatrixConverter.DM_11(mat, UNIT))
+        pass
+
+    def generate(self, param):
+        # TODO
+        # generate the bottom first
+        
+        pass
+
+
+CONFIG_INPUTPATH = "InputPath"
+CONFIG_OUTPUTPATH = "OutputPath"
+
+DEST_SIZE = (16,150)
+
+
+class GroupQLevelGenerator:
+    """
+    Mario Level Generator of GroupQ
+    """
+
+    def __init__(self, config_path):
+        self._config = None
+        self._markovchain = MDMarkovChain()
+        self.load_config(config_path)
+        self._output = np.zeros(DEST_SIZE, dtype=int)
+
+
+    def load_config(self, config_path):
+        # load config
+        arg_load = config_path
+        self._config = configparser.ConfigParser()
+        self._config.read(arg_load)
+
+    def train_levels(self):
+        """
+        train mario levels from input paths in config file
+        """
+        te = TimeEstimate().start()
+        
+        # looping input paths
+        for key in self._config[CONFIG_INPUTPATH]:
+            base_path = self._config[CONFIG_INPUTPATH][key]
+            # load levels
+            flist = os.listdir(base_path)
+            files = []
+            [files.append(f) if f.endswith('txt') else None for f in flist]
+            for filename in files:
+                level = MarioLevel(os.path.join(base_path, filename))
+                # train level
+                self._markovchain.train( level )
+
+        return te.stop()
+
+    def generate_level(self):
+        """generate the mario level"""
+        # initialize the output
+        te = TimeEstimate().start()
+        self._output.fill(MarioSprite.EMPTY.value)
+        # TODO
+
+        return te.stop()
+
+    def save_file(self, idx):
+        # ready for save
+        filename = os.path.join(self._config[CONFIG_OUTPUTPATH]["path"], "lvl-{}.txt".format(idx))
+        f = open(filename, 'w')
+        f.write(MarioLevel.EncodeLevel(self._output))
+        f.close()
+        
+
+
 
 if __name__ == '__main__':
-    # check generate path
-    
+    if len(sys.argv) != 2:
+        print("it need config file to run : python3 main.py config.ini")
+        sys.exit(1)
 
-    #load all levels...
-    levels_path = ['./levels/original']
-    # load txt
-    for path in levels_path:
-        l = os.listdir(levels_path[0])
-        datas = []
-        [datas.append(d) if d.endswith('txt') else None for d in l]
-
-        for level in datas:
-            load_levels("{}/{}".format(levels_path[0], level))
-
-    # generate
-    generate()
+    generator = GroupQLevelGenerator(sys.argv[1])
+    print("training time : {:.3f} secs".format(generator.train_levels()))
+    print("generating time : {:.3f} secs".format(generator.generate_level()))
+    generator.save_file(0)
