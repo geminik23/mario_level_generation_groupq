@@ -223,9 +223,8 @@ class MarioCoreMC:
         #####
         # 3. generate whole tiles
         for xoff in range(self._unit, w, self._unit):
-            rti.inspect(xoff) ## inspect whenever changed new column
             for yoff in range(h - 2*self._unit, -1, -self._unit):
-                res = rti.start_dm_type()
+                res = rti.inspect((xoff, yoff)) ## inspect whenever changed new column
 
                 # check current position
                 generated = None

@@ -1,3 +1,4 @@
+
 import enum
 from mario_constant import *
 import numpy as np
@@ -22,10 +23,6 @@ class RealtimeInspector:
         self._cur_method = RTIResult.DMAT_1111
         self._unit = None
         self._start_point = None
-        self._space_enemy = []
-        self._expecting_column = []
-        self._expecting_blocks = []
-        self._jump_point = [0,0]
         # mario start and exit position 
         self._m_start = None
         self._m_exit = None
@@ -41,32 +38,34 @@ class RealtimeInspector:
         self._m_start = None
         self._m_exit = None
         self._t_start_sel_pos = MARIO_START_POSITION
-        self._jump_point = [0,0]
-        self._space_enemy = []
         pass
 
-    def inspect(self, yoff):
-        """this function is called whenever changed the column. check the bottom gaps."""
+    def inspect(self, pos):
+        """
+        This was supposed to track the player's path, to avoid the unplayable factors, and to find the place to put the enemies and coins.
+        For future work, this method will be used for MCTS (Monte Carlo Tree Search)
+        """
         if self._data is None: raise TypeError("data is not assigned")
 
         # initialize
         (h, w) = np.shape(self._data)
         self._expecting_blocks = []
 
-        self._last_ncol = yoff
+        self._last_ncol = pos[1]
 
         # search start position
         if not self._m_start:
-            self._search_startpos(yoff)
-        # "FUTURE WORKS"
+            self._search_startpos(pos[1])
+
+        ## TODO "FUTURE WORK"
 
 
-    def start_dm_type(self):
-        """Dependency Matrix type to generate block"""
         self._cur_method = RTIResult.DMAT_1111
         return self._cur_method
 
+
     def check_bottom(self):
+        """check gap is jumpable"""
         bline = self._data[-1,:]
         n = 0
         for t in bline:
@@ -76,20 +75,17 @@ class RealtimeInspector:
         return True
 
 
-
     def check_block(self, block):
-        """check whether the block is suitable at position"""
+        """check whether the block is suitable or not"""
         if block is None:
             # if there is no block, return next dependency matrix
             self._cur_method = RTIResult(self._cur_method.value+1)
             return self._cur_method
-        # TODO elif inside then TRUE
 
-        if len(self._expecting_blocks) == 0 or False:
-            return RTIResult.TRUE
+        # TODO Check block is suitable
 
-        # TODO
         return RTIResult.TRUE
+
 
     def mario_start_pos(self):
         return self._m_start
