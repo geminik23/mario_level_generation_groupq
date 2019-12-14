@@ -163,6 +163,7 @@ class MarioCoreMC:
 
 
     def train(self, level):
+        """ train the level """
         ldata = level.get_data()
         nrows = ldata.shape[0]/self._unit
 
@@ -198,6 +199,7 @@ class MarioCoreMC:
 
 
     def generate(self, output, rti):
+        """ generate new level """
         (h, w) = output.shape
         rti.reset(output, self._unit)
 
