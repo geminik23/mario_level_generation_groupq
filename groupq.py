@@ -210,14 +210,17 @@ class MarioCoreMC:
         ######
         # 2. generate the bottom
         #output[h-self._unit:h, 0:self._unit] = self._start_block[:,:]
-        cur = output[h-self._unit:h, 0:self._unit]
         retry = True
+        if w%self._unit != 0:
+            w -= w%self._unit
         while retry:
+            cur = output[h-self._unit:h, 0:self._unit]
             for xoff in range(self._unit, w, self._unit):
                 generated = self._dt_bottom.generate_state(DMatConverter.Encode(cur))
-                # FIXME check if generated? Realtime 
+                if not generated: break
                 cur = DMatConverter.Decode(generated, (self._unit, self._unit))
                 output[h-self._unit:h, xoff:xoff+self._unit] = cur[:,:]
+
             retry = not rti.check_bottom()
 
         #####
@@ -245,8 +248,9 @@ class MarioCoreMC:
                         generated = self._dt_11.generate_state(DMat_11.PrevState(cur, self._unit))
                     #
                     elif res is RTIResult.ERROR:
-                        print("[ERR] MAIN - BlockSize is too big or Training Data is not enouch.")
-                        sys.exit(1)
+                        print("retry.... BlockSize is too big or Training Data is not enouch.")
+                        break
+                        # sys.exit(1)
 
                     res = rti.check_block(generated)
                     if res is RTIResult.TRUE:
@@ -259,7 +263,8 @@ class MarioCoreMC:
         startpos = rti.mario_start_pos()
         exitpos = rti.mario_exit_pos()
 
-        output[startpos[1], startpos[0]] = MarioSprite.MARIO_START.value
+        if startpos:
+            output[startpos[1], startpos[0]] = MarioSprite.MARIO_START.value
         output[exitpos[1], exitpos[0]] = MarioSprite.MARIO_EXIT.value
 
         # TODO self._rt_inspector.place enemy / coin / items
