@@ -8,7 +8,7 @@ The only thrid-party library used in this program is numpy.
 To install,
 
 ```bash
-pipe3 install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 
 ## How to run?
