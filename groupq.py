@@ -248,7 +248,7 @@ class MarioCoreMC:
                         generated = self._dt_11.generate_state(DMat_11.PrevState(cur, self._unit))
                     #
                     elif res is RTIResult.ERROR:
-                        print("retry.... BlockSize is too big or Training Data is not enouch.")
+                        print("retry.... this happens when blocksize is too big or training data is not enouch.")
                         break
                         # sys.exit(1)
 
