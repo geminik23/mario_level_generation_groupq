@@ -3,7 +3,7 @@ import sys
 from random import Random, choices
 import numpy as np
 import configparser
-from rtinspector import RealtimeInspector, RTResult
+from rtinspector import RealtimeInspector, RTIResult
 from mario_constant import *
 
 
@@ -199,7 +199,6 @@ class MarioCoreMC:
 
     def generate(self, output, rti):
         (h, w) = output.shape
-
         rti.reset(output, self._unit)
 
         ######
@@ -212,48 +211,59 @@ class MarioCoreMC:
         # 2. generate the bottom
         #output[h-self._unit:h, 0:self._unit] = self._start_block[:,:]
         cur = output[h-self._unit:h, 0:self._unit]
-        for xoff in range(self._unit, w, self._unit):
-            generated = self._dt_bottom.generate_state(DMatConverter.Encode(cur))
-            # FIXME check if generated? Realtime 
-            cur = DMatConverter.Decode(generated, (self._unit, self._unit))
-            output[h-self._unit:h, xoff:xoff+self._unit] = cur[:,:]
-            
+        retry = True
+        while retry:
+            for xoff in range(self._unit, w, self._unit):
+                generated = self._dt_bottom.generate_state(DMatConverter.Encode(cur))
+                # FIXME check if generated? Realtime 
+                cur = DMatConverter.Decode(generated, (self._unit, self._unit))
+                output[h-self._unit:h, xoff:xoff+self._unit] = cur[:,:]
+            retry = not rti.check_bottom()
 
         #####
         # 3. generate whole tiles
         for xoff in range(self._unit, w, self._unit):
+            rti.inspect(xoff) ## inspect whenever changed new column
             for yoff in range(h - 2*self._unit, -1, -self._unit):
+                res = rti.start_dm_type()
+
                 # check current position
-                res = rti.inspect((xoff, yoff))
                 generated = None
 
                 # dependency matrix methods
-                while res is not RTResult.TRUE:
+                while res is not RTIResult.TRUE:
                     #
-                    if res is RTResult.DMAT_1111:
+                    if res is RTIResult.DMAT_1111:
                         cur = output[yoff:yoff+self._unit*2, xoff-self._unit:xoff+self._unit]
                         generated = self._dt_1111.generate_state(DMat_1111.PrevState(cur, self._unit))
                     #
-                    elif res is RTResult.DMAT_1101:
+                    elif res is RTIResult.DMAT_1101:
                         cur = output[yoff:yoff+self._unit*2, xoff-self._unit:xoff+self._unit]
                         generated = self._dt_1101.generate_state(DMat_1101.PrevState(cur, self._unit))
-
                     #
-                    elif res is RTResult.DMAT_11:
+                    elif res is RTIResult.DMAT_11:
                         cur = output[yoff:yoff+self._unit, xoff-self._unit:xoff+self._unit]
                         generated = self._dt_11.generate_state(DMat_11.PrevState(cur, self._unit))
-
+                    #
+                    elif res is RTIResult.ERROR:
+                        print("[ERR] MAIN - BlockSize is too big or Training Data is not enouch.")
+                        sys.exit(1)
 
                     res = rti.check_block(generated)
-                    if res is RTResult.TRUE:
+                    if res is RTIResult.TRUE:
                         output[yoff:yoff+self._unit, xoff:xoff+self._unit] = DMatConverter.Decode(generated, (self._unit, self._unit))[:,:]
+                ######################## end while
+        
 
-                    pass # while
+
+        # placing MARIO_START MARIO_EXIT
+        startpos = rti.mario_start_pos()
+        exitpos = rti.mario_exit_pos()
+
+        output[startpos[1], startpos[0]] = MarioSprite.MARIO_START.value
+        output[exitpos[1], exitpos[0]] = MarioSprite.MARIO_EXIT.value
 
         # TODO self._rt_inspector.place enemy / coin / items
-
-                pass #for
-            pass #for
         pass #generate()
 
         

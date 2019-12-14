@@ -12,6 +12,12 @@ DEST_WIDTH= 150
 DEST_HEIGHT = 16
 DEST_SIZE = (DEST_HEIGHT, DEST_WIDTH)
 
+MARIO_START_POSITION = 4
+MARIO_EXIT_POSITION = 2
+
+JUMP_MAXIMUM_H = 4
+JUMP_MAXIMUM_W = 4
+
 
 # for time estimation
 class TimeEstimate:
@@ -68,7 +74,6 @@ class MarioSprite(enum.Enum):
     SPIKY_WINGED =ord('Y')
 
     # only in ORIGINAL
-    #CACTUS =ord('|')
 
 
 # 
@@ -86,6 +91,6 @@ ALL_ENEMY = [MarioSprite.GOOMBA.value,
 ALL_SPRITES_TO_BE_REMOVED = [MarioSprite.MARIO_START.value,
         MarioSprite.MARIO_EXIT.value,
         MarioSprite.COIN.value,
-        MarioSprite.PLATFORM_BACKGROUND.value ] + ALL_ENEMY
+        MarioSprite.PLATFORM_BACKGROUND.value ] # + ALL_ENEMY
 
 
