@@ -45,3 +45,5 @@ path = ./levels/groupq
 3. [OutputPath]
 *  path : The folder path to be generated.
 
+## Paper
+[Mario AI: A Level Generation Framework](Mario%20AI_%20A%20Level%20Generation%20Framework.docx.pdf)
